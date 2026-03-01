@@ -7,6 +7,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const connectDB = require("./config/db.config");
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,6 +18,8 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use("/api/auth", authRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -29,10 +32,15 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => res.json({ status: "OK" }));
 
-// Global error handler (starter)
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ success: false, message: "Server Error" });
+  console.error(err.stack);
+  res.status(500).json({ success: false, message: "Something went wrong!" });
 });
 
 const startServer = async () => {
