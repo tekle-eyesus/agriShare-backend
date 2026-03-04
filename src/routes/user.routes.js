@@ -1,9 +1,9 @@
-const express = require("express");
-const router = express.Router();
+import express from "express";
+import { protect, restrictTo } from "../middlewares/auth.middleware.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
 
-const { protect, restrictTo } = require("../middlewares/auth.middleware");
-const asyncHandler = require("../utils/asyncHandler").asyncHandler;
-const { ApiResponse } = require("../utils/ApiResponse");
+const router = express.Router();
 
 router.get(
   "/me",
@@ -55,4 +55,4 @@ router.get(
   }),
 );
 
-module.exports = router;
+export default router;

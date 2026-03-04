@@ -1,7 +1,8 @@
-const { ApiError } = require("../utils/ApiError");
-const { ApiResponse } = require("../utils/ApiResponse");
-const asyncHandler = require("../utils/asyncHandler").asyncHandler;
-const Asset = require("../models/Asset");
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import Asset from "../models/Asset.js";
+// import { mintNFT } from "../services/blockchain.service.js"; // Assuming blockchain service is updated too or will be
 
 // Create asset
 const createAsset = asyncHandler(async (req, res) => {
@@ -115,10 +116,40 @@ const verifyAsset = asyncHandler(async (req, res) => {
   const message =
     status === "verified" ? "Asset verified successfully" : "Asset rejected";
 
+  // // If verified, mint NFT
+  // if (status === "verified") {
+  //   // Prepare simple metadata URI (later: real IPFS)
+  //   const metadata = {
+  //     name: `${asset.type === "farmland" ? "Farmland" : "Livestock"} - ${asset.name}`,
+  //     description: asset.description || "Asset tokenized on AgriShare",
+  //     image: asset.photos?.[0]?.url || "https://via.placeholder.com/400", // placeholder
+  //     attributes: [
+  //       { trait_type: "Type", value: asset.type },
+  //       {
+  //         trait_type: "Location",
+  //         value: `${asset.location.region}, ${asset.location.woreda}`,
+  //       },
+
+  //       // add more from farmlandDetails / livestockDetails later
+  //     ],
+  //   };
+
+  //   // For MVP: use JSON string as data URI (real: upload to Pinata/IPFS)
+  //   const metadataURI = `data:application/json,${encodeURIComponent(JSON.stringify(metadata))}`;
+
+  //   const { tokenId, txHash } = await mintNFT(
+  //     process.env.CUSTODIAL_WALLET_ADDRESS || wallet.address, // farmer's custodial address or platform
+  //     metadataURI,
+  //   );
+
+  //   asset.nftTokenId = tokenId;
+  //   asset.nftTxHash = txHash;
+  //   asset.nftMintedAt = new Date();
+  // }
   return res.json(new ApiResponse(200, { asset }, message));
 });
 
-module.exports = {
+export {
   createAsset,
   getMyAssets,
   getPendingAssets,

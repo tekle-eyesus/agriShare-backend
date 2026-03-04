@@ -1,16 +1,16 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const morgan = require("morgan");
-const dotenv = require("dotenv");
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const connectDB = require("./config/db.config");
-const authRoutes = require("./routes/auth.routes");
-const errorHandler = require("./middlewares/error.middleware");
-const userRoutes = require("./routes/user.routes");
-const assetRoutes = require("./routes/asset.routes");
+import connectDB from "./config/db.config.js";
+import authRoutes from "./routes/auth.routes.js";
+import errorHandler from "./middlewares/error.middleware.js";
+import userRoutes from "./routes/user.routes.js";
+import assetRoutes from "./routes/asset.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;

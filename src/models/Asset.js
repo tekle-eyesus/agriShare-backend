@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const assetSchema = new Schema(
@@ -137,6 +137,16 @@ const assetSchema = new Schema(
       },
     },
 
+    // blockchain-related fields
+    nftTokenId: {
+      type: Number,
+    },
+    nftTxHash: {
+      type: String,
+    },
+    nftMintedAt: {
+      type: Date,
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -156,4 +166,4 @@ assetSchema.pre("save", async function () {
   }
 });
 
-module.exports = mongoose.model("Asset", assetSchema);
+export default mongoose.model("Asset", assetSchema);

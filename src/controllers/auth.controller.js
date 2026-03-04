@@ -1,10 +1,10 @@
-const { ApiError } = require("../utils/ApiError");
-const { ApiResponse } = require("../utils/ApiResponse");
-const User = require("../models/User");
-const { generateToken } = require("../utils/jwt");
-const asyncHandler = require("../utils/asyncHandler").asyncHandler;
+import { ApiError } from "../utils/ApiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import User from "../models/User.js";
+import { generateToken } from "../utils/jwt.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-const register = asyncHandler(async (req, res) => {
+export const register = asyncHandler(async (req, res) => {
   const { fullName, phone, email, password, role, nationalId } = req.body;
 
   if (!fullName || !phone || !email || !password) {
@@ -49,7 +49,7 @@ const register = asyncHandler(async (req, res) => {
     );
 });
 
-const login = asyncHandler(async (req, res) => {
+export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -81,4 +81,4 @@ const login = asyncHandler(async (req, res) => {
   );
 });
 
-module.exports = { register, login };
+// module.exports = { register, login };

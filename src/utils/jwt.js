@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-const generateToken = (user) => {
+export const generateToken = (user) => {
   const payload = {
     id: user._id,
     role: user.role,
@@ -12,7 +12,7 @@ const generateToken = (user) => {
   });
 };
 
-const verifyToken = (token) => {
+export const verifyToken = (token) => {
   try {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
@@ -20,4 +20,4 @@ const verifyToken = (token) => {
   }
 };
 
-module.exports = { generateToken, verifyToken };
+// module.exports = { generateToken, verifyToken };

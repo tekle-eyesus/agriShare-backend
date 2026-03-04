@@ -1,17 +1,15 @@
-const express = require("express");
-const router = express.Router();
-
-const { protect, restrictTo } = require("../middlewares/auth.middleware");
-
-const {
+import express from "express";
+import { protect, restrictTo } from "../middlewares/auth.middleware.js";
+import {
   createAsset,
   getMyAssets,
   getPendingAssets,
   verifyAsset,
   getAssetById,
-} = require("../controllers/asset.controller");
+} from "../controllers/asset.controller.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-const asyncHandler = require("../utils/asyncHandler").asyncHandler;
+const router = express.Router();
 
 // Farmer routes
 router.post("/", protect, restrictTo("farmer"), asyncHandler(createAsset));
@@ -39,4 +37,4 @@ router.patch(
 
 router.get("/:id", protect, asyncHandler(getAssetById));
 
-module.exports = router;
+export default router;

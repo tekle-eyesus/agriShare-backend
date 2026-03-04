@@ -1,7 +1,7 @@
-const jwt = require("jsonwebtoken");
-const { ApiError } = require("../utils/ApiError");
-const User = require("../models/User");
-const asyncHandler = require("../utils/asyncHandler").asyncHandler;
+import jwt from "jsonwebtoken";
+import { ApiError } from "../utils/ApiError.js";
+import User from "../models/User.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -47,4 +47,4 @@ const restrictTo = (...roles) => {
   };
 };
 
-module.exports = { protect, restrictTo };
+export { protect, restrictTo };
