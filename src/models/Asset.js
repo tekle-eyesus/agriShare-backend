@@ -136,7 +136,10 @@ const assetSchema = new Schema(
         quantity: { type: Number, min: 1, default: 1 }, // e.g. herd of 5 sheep
       },
     },
-
+    currentListing: {
+      type: Schema.Types.ObjectId,
+      ref: "Listing",
+    },
     // blockchain-related fields
     nftTokenId: {
       type: Number,

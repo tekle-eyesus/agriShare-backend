@@ -40,5 +40,24 @@ export const mintNFT = async (toAddress, metadataURI) => {
   }
 };
 
-// module.exports = { mintNFT, provider, wallet };
-//  net work to use Sepolia
+export const deployShareToken = async (
+  name,
+  symbol,
+  totalSupply = 100n * 10n ** 18n,
+) => {
+  try {
+    const factory = new ethers.ContractFactory(
+      YieldShareTokenABI, // you'll need ABI/bytecode or use artifacts
+      YieldShareTokenBytecode,
+      wallet,
+    );
+
+    const contract = await factory.deploy(name, symbol, totalSupply);
+    await contract.deployed();
+
+    console.log(`ShareToken deployed: ${contract.address}`);
+    return contract.address;
+  } catch (err) {
+    throw new Error(`Deploy failed: ${err.message}`);
+  }
+};
