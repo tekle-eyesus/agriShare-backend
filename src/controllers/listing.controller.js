@@ -65,3 +65,51 @@ export const createListing = asyncHandler(async (req, res) => {
       ),
     );
 });
+
+export const getActiveListings = asyncHandler(async (req, res) => {
+  const listings = await Listing.find({ status: "active" })
+    .populate("asset")
+    .populate("farmer", "fullName profilePicture")
+    .sort({ createdAt: -1 });
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { listings, count: listings.length },
+      "Active listings retrieved",
+    ),
+  );
+});
+
+export const getMyListings = asyncHandler(async (req, res) => {
+  if (req.user.role !== "farmer") {
+    throw new ApiError(403, "Only farmers can view their own listings");
+  }
+
+  const listings = await Listing.find({ farmer: req.user._id })
+    .populate("asset")
+    .sort({ createdAt: -1 });
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { listings, count: listings.length },
+      "Your listings retrieved",
+    ),
+  );
+});
+
+export const getListingById = asyncHandler(async (req, res) => {
+  const listing = await Listing.findById(req.params.id)
+    .populate("asset")
+    .populate("farmer", "fullName phone profilePicture");
+
+  if (!listing) {
+    throw new ApiError(404, "Listing not found");
+  }
+
+  return res.json(
+    new ApiResponse(200, { listing }, "Listing details retrieved"),
+  );
+});
+
