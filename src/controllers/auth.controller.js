@@ -9,31 +9,74 @@ import {
 } from "../services/agriCredits.service.js";
 
 export const register = asyncHandler(async (req, res) => {
-  const { fullName, phone, email, password, role, nationalId } = req.body;
-
-  if (!fullName || !phone || !email || !password) {
-    throw new ApiError(
-      400,
-      "Full name, phone, email and password are required",
-    );
-  }
-
-  const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-  if (existingUser) {
-    throw new ApiError(400, "Email or phone number already in use");
-  }
-
-  const user = await User.create({
-    fullName,
+  const {
+    firstName,
+    lastName,
     phone,
     email,
     password,
-    role: role || "investor",
-    nationalId: role === "farmer" ? nationalId : undefined,
+    role,
+    nationalId,
+    region,
+    zone,
+    woreda,
+    kebele,
+    bio,
+  } = req.body;
+
+  const selectedRole = (role || "investor").toLowerCase();
+
+  if (!firstName || !lastName || !phone || !email || !password) {
+    throw new ApiError(
+      400,
+      "First name, last name, phone, email and password are required",
+    );
+  }
+
+  if (!["farmer", "investor", "admin"].includes(selectedRole)) {
+    throw new ApiError(400, "Invalid role provided");
+  }
+
+  const isBlank = (value) =>
+    value === undefined || value === null || String(value).trim() === "";
+
+  if (
+    selectedRole === "farmer" &&
+    [nationalId, region, zone, woreda, kebele].some(isBlank)
+  ) {
+    throw new ApiError(
+      400,
+      "National ID, region, zone, woreda and kebele are required for farmer accounts",
+    );
+  }
+
+  const existingUser = await User.findOne({
+    $or: [{ email }, { phone }, ...(nationalId ? [{ nationalId }] : [])],
+  });
+  if (existingUser) {
+    throw new ApiError(
+      400,
+      "Email, phone number or national ID already in use",
+    );
+  }
+
+  const user = await User.create({
+    firstName,
+    lastName,
+    phone,
+    email,
+    password,
+    role: selectedRole,
+    nationalId: selectedRole === "farmer" ? nationalId?.trim() : undefined,
+    region: selectedRole === "farmer" ? region?.trim() : undefined,
+    zone: selectedRole === "farmer" ? zone?.trim() : undefined,
+    woreda: selectedRole === "farmer" ? woreda?.trim() : undefined,
+    kebele: selectedRole === "farmer" ? kebele?.trim() : undefined,
+    bio: bio?.trim() || undefined,
   });
 
   // Grant signup + monthly AgriCredits bonus
-  if (role === "farmer") {
+  if (user.role === "farmer") {
     await grantSignupBonus(user._id);
     await grantMonthlyCredits(user._id);
   }
@@ -42,10 +85,15 @@ export const register = asyncHandler(async (req, res) => {
 
   const userData = {
     id: user._id,
-    fullName: user.fullName,
     email: user.email,
     phone: user.phone,
     role: user.role,
+    fullName: `${user.firstName} ${user.lastName}`,
+    region: user.region,
+    zone: user.zone,
+    woreda: user.woreda,
+    kebele: user.kebele,
+    bio: user.bio,
   };
 
   return res
@@ -80,7 +128,7 @@ export const login = asyncHandler(async (req, res) => {
 
   const userData = {
     id: user._id,
-    fullName: user.fullName,
+    fullName: `${user.firstName} ${user.lastName}`,
     email: user.email,
     phone: user.phone,
     role: user.role,
@@ -94,6 +142,15 @@ export const login = asyncHandler(async (req, res) => {
   return res.json(
     new ApiResponse(200, { token, user: userData }, "Login successful"),
   );
+});
+
+export const logout = asyncHandler(async (_req, res) => {
+  // Clear common cookie names if JWT is ever stored in cookies.
+  res.clearCookie("token");
+  res.clearCookie("jwt");
+  res.clearCookie("accessToken");
+
+  return res.status(200).json(new ApiResponse(200, {}, "Logout successful"));
 });
 
 // module.exports = { register, login };

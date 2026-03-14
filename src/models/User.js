@@ -4,9 +4,14 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema(
   {
-    fullName: {
+    firstName: {
       type: String,
-      required: [true, "Full name is required"],
+      required: [true, "First name is required"],
+      trim: true,
+    },
+    lastName: {
+      type: String,
+      required: [true, "Last name is required"],
       trim: true,
     },
     phone: {
@@ -40,6 +45,39 @@ const userSchema = new Schema(
       }, // farmers need ID
       unique: true,
       sparse: true, // allows null for non-farmers
+    },
+    region: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "farmer";
+      },
+    },
+    zone: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "farmer";
+      },
+    },
+    woreda: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "farmer";
+      },
+    },
+    kebele: {
+      type: String,
+      trim: true,
+      required: function () {
+        return this.role === "farmer";
+      },
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 600,
     },
     profilePicture: {
       type: String,
