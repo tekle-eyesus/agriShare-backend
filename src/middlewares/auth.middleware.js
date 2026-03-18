@@ -47,4 +47,19 @@ const restrictTo = (...roles) => {
   };
 };
 
-export { protect, restrictTo };
+const requireVerifiedInvestor = (req, res, next) => {
+  if (!req.user || req.user.role !== "investor") {
+    throw new ApiError(403, "Only investors can access this resource");
+  }
+
+  if (!req.user.isVerified || req.user.verificationStatus !== "verified") {
+    throw new ApiError(
+      403,
+      "Investor email is not verified. Please verify before continuing",
+    );
+  }
+
+  next();
+};
+
+export { protect, restrictTo, requireVerifiedInvestor };
