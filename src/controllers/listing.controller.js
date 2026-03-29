@@ -6,6 +6,26 @@ import Listing from "../models/Listing.js";
 import ListingUpdate from "../models/ListingUpdate.js";
 import { addCredits, deductCredits } from "../services/agriCredits.service.js";
 
+const getFundingMetrics = (listingDoc) => {
+  const listing =
+    typeof listingDoc.toObject === "function"
+      ? listingDoc.toObject()
+      : { ...listingDoc };
+
+  const goal = Number(listing.investmentGoalBirr || 0);
+  const invested = Number(listing.totalInvestedBirr || 0);
+  const progressPercent = goal > 0 ? Math.min((invested / goal) * 100, 100) : 0;
+
+  return {
+    ...listing,
+    investmentProgressPercent: Number(progressPercent.toFixed(2)),
+    fundingRemainingBirr: Number(Math.max(goal - invested, 0).toFixed(2)),
+    isDeadlinePassed: listing.investmentDeadline
+      ? new Date() > new Date(listing.investmentDeadline)
+      : false,
+  };
+};
+
 export const createListing = asyncHandler(async (req, res) => {
   if (req.user.role !== "farmer") {
     throw new ApiError(403, "Only farmers can list assets");
@@ -23,6 +43,9 @@ export const createListing = asyncHandler(async (req, res) => {
     investmentGoalBirr,
     sharesToSellPercent,
     expectedTotalYieldBirr,
+    investmentDeadline,
+    payoutMode = "fixed",
+    payoffDaysFromRelease,
     paydayDate,
     minSharesPerInvestor = 1,
     pitchTitle,
@@ -39,6 +62,53 @@ export const createListing = asyncHandler(async (req, res) => {
     typeof useOfFunds === "string" ? useOfFunds.trim() : "";
   const normalizedRiskFactors =
     typeof riskFactors === "string" ? riskFactors.trim() : "";
+  const normalizedPayoutMode =
+    typeof payoutMode === "string" ? payoutMode.trim().toLowerCase() : "fixed";
+
+  if (!["fixed", "offset"].includes(normalizedPayoutMode)) {
+    throw new ApiError(400, 'payoutMode must be either "fixed" or "offset"');
+  }
+
+  const parsedInvestmentDeadline = new Date(investmentDeadline);
+  if (!investmentDeadline || Number.isNaN(parsedInvestmentDeadline.getTime())) {
+    throw new ApiError(
+      400,
+      "investmentDeadline is required and must be a valid date",
+    );
+  }
+
+  if (parsedInvestmentDeadline <= new Date()) {
+    throw new ApiError(400, "investmentDeadline must be in the future");
+  }
+
+  let parsedPaydayDate = null;
+  let normalizedPayoffDaysFromRelease = null;
+
+  if (normalizedPayoutMode === "fixed") {
+    parsedPaydayDate = new Date(paydayDate);
+    if (!paydayDate || Number.isNaN(parsedPaydayDate.getTime())) {
+      throw new ApiError(
+        400,
+        "paydayDate is required when payoutMode is fixed",
+      );
+    }
+
+    if (parsedPaydayDate <= parsedInvestmentDeadline) {
+      throw new ApiError(
+        400,
+        "paydayDate must be after investmentDeadline when payoutMode is fixed",
+      );
+    }
+  } else {
+    const parsedDays = Number.parseInt(payoffDaysFromRelease, 10);
+    if (Number.isNaN(parsedDays) || parsedDays < 1) {
+      throw new ApiError(
+        400,
+        "payoffDaysFromRelease is required and must be at least 1 when payoutMode is offset",
+      );
+    }
+    normalizedPayoffDaysFromRelease = parsedDays;
+  }
 
   if (!normalizedPitchTitle) {
     throw new ApiError(400, "pitchTitle is required");
@@ -119,9 +189,15 @@ export const createListing = asyncHandler(async (req, res) => {
       pitchText: normalizedPitchText,
       useOfFunds: normalizedUseOfFunds,
       riskFactors: normalizedRiskFactors,
-      paydayDate: new Date(paydayDate),
+      investmentDeadline: parsedInvestmentDeadline,
+      payoutMode: normalizedPayoutMode,
+      payoffDaysFromRelease: normalizedPayoffDaysFromRelease,
+      paydayDate: parsedPaydayDate,
+      effectivePaydayDate:
+        normalizedPayoutMode === "fixed" ? parsedPaydayDate : null,
       minSharesPerInvestor,
       sharePricePerTokenBirr: sharePrice,
+      totalInvestedBirr: 0,
       // shareTokenAddress: 'pending deploy...',   // later real address after ERC-20 deployment
     });
 
@@ -170,7 +246,7 @@ export const createListing = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         201,
-        { listing },
+        { listing: getFundingMetrics(listing) },
         "Asset listed for investment successfully",
       ),
     );
@@ -182,11 +258,30 @@ export const getActiveListings = asyncHandler(async (req, res) => {
     .populate("farmer", "fullName profilePicture")
     .sort({ createdAt: -1 });
 
+  const listingsWithFunding = listings.map(getFundingMetrics);
+
   return res.json(
     new ApiResponse(
       200,
-      { listings, count: listings.length },
+      { listings: listingsWithFunding, count: listingsWithFunding.length },
       "Active listings retrieved",
+    ),
+  );
+});
+
+export const getAllListings = asyncHandler(async (req, res) => {
+  const listings = await Listing.find()
+    .populate("asset")
+    .populate("farmer", "fullName profilePicture")
+    .sort({ createdAt: -1 });
+
+  const listingsWithFunding = listings.map(getFundingMetrics);
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { listings: listingsWithFunding, count: listingsWithFunding.length },
+      "All listings retrieved",
     ),
   );
 });
@@ -200,10 +295,12 @@ export const getMyListings = asyncHandler(async (req, res) => {
     .populate("asset")
     .sort({ createdAt: -1 });
 
+  const listingsWithFunding = listings.map(getFundingMetrics);
+
   return res.json(
     new ApiResponse(
       200,
-      { listings, count: listings.length },
+      { listings: listingsWithFunding, count: listingsWithFunding.length },
       "Your listings retrieved",
     ),
   );
@@ -219,6 +316,10 @@ export const getListingById = asyncHandler(async (req, res) => {
   }
 
   return res.json(
-    new ApiResponse(200, { listing }, "Listing details retrieved"),
+    new ApiResponse(
+      200,
+      { listing: getFundingMetrics(listing) },
+      "Listing details retrieved",
+    ),
   );
 });

@@ -6,6 +6,7 @@ import {
   getActiveListings,
   getMyListings,
   getListingById,
+  getAllListings,
 } from "../controllers/listing.controller.js";
 import {
   createListingUpdate,
@@ -23,7 +24,10 @@ import { upload } from "../middlewares/upload.middleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 router.post("/", protect, restrictTo("farmer"), createListing);
+router.get("/", protect, asyncHandler(getAllListings));
+router.get("/:id", protect, asyncHandler(getListingById));
 router.get("/active", protect, asyncHandler(getActiveListings));
+
 router.get(
   "/my-listings",
   protect,
@@ -67,7 +71,5 @@ router.delete(
   restrictTo("investor"),
   deleteReview,
 );
-
-router.get("/:id", protect, asyncHandler(getListingById));
 
 export default router;

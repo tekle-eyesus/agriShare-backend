@@ -2,7 +2,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Listing from "../models/Listing.js";
+import InvestmentContract from "../models/InvestmentContract.js";
 import User from "../models/User.js";
+import { refundListingInvestments } from "../services/refund.service.js";
 import {
   getAllHolders,
   closeSharesAfterDistribution,
@@ -20,11 +22,27 @@ export const distributeProfits = asyncHandler(async (req, res) => {
   if (listing.farmer.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your listing");
   }
-  if (listing.status !== "active") {
-    throw new ApiError(400, "Listing not active");
+  if (!["funded", "active"].includes(listing.status)) {
+    throw new ApiError(400, "Listing is not ready for distribution");
+  }
+
+  if (
+    Number(listing.totalInvestedBirr || 0) <
+    Number(listing.investmentGoalBirr || 0)
+  ) {
+    throw new ApiError(400, "Funding goal has not been reached yet");
+  }
+
+  const payoutDate =
+    listing.payoutMode === "offset"
+      ? listing.effectivePaydayDate
+      : listing.paydayDate;
+
+  if (!payoutDate) {
+    throw new ApiError(400, "Listing payout date is not available yet");
   }
   // distribution can only be triggered on payday or after
-  if (new Date() < listing.paydayDate) {
+  if (new Date() < payoutDate) {
     throw new ApiError(400, "Payday not reached yet");
   }
 
@@ -65,6 +83,11 @@ export const distributeProfits = asyncHandler(async (req, res) => {
   listing.status = "completed";
   await listing.save();
 
+  await InvestmentContract.updateMany(
+    { listing: listing._id, status: "active" },
+    { $set: { status: "completed" } },
+  );
+
   // Mock burn
   await closeSharesAfterDistribution(listingId, distributionMap);
 
@@ -79,6 +102,45 @@ export const distributeProfits = asyncHandler(async (req, res) => {
         message: "Profits distributed based on expected yield (Option B)",
       },
       "Distribution completed",
+    ),
+  );
+});
+
+export const triggerManualListingRefund = asyncHandler(async (req, res) => {
+  if (req.user.role !== "admin") {
+    throw new ApiError(403, "Only admins can trigger manual refunds");
+  }
+
+  const { listingId, force = false, reason } = req.body;
+
+  if (!listingId) {
+    throw new ApiError(400, "listingId is required");
+  }
+
+  const normalizedReason =
+    typeof reason === "string" && reason.trim()
+      ? reason.trim()
+      : "manual_admin_refund";
+
+  const result = await refundListingInvestments(listingId, {
+    force: Boolean(force),
+    reason: normalizedReason,
+  });
+
+  if (!result.refunded) {
+    throw new ApiError(
+      400,
+      `Refund not processed: ${
+        result.reason || "listing_not_eligible_for_refund"
+      }`,
+    );
+  }
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { refund: result },
+      "Manual refund processed successfully",
     ),
   );
 });
