@@ -10,6 +10,9 @@ import {
   closeSharesAfterDistribution,
 } from "../services/token.service.js";
 
+const roundBirr = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
 export const distributeProfits = asyncHandler(async (req, res) => {
   if (req.user.role !== "farmer") {
     throw new ApiError(403, "Only farmers can trigger distribution");
@@ -33,19 +36,6 @@ export const distributeProfits = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Funding goal has not been reached yet");
   }
 
-  const payoutDate =
-    listing.payoutMode === "offset"
-      ? listing.effectivePaydayDate
-      : listing.paydayDate;
-
-  if (!payoutDate) {
-    throw new ApiError(400, "Listing payout date is not available yet");
-  }
-  // distribution can only be triggered on payday or after
-  if (new Date() < payoutDate) {
-    throw new ApiError(400, "Payday not reached yet");
-  }
-
   // In real: farmer deposits total revenue Birr to platform first
   // Here: assume he has enough in wallet (later check + debit)
 
@@ -54,16 +44,48 @@ export const distributeProfits = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No investors to distribute to");
   }
 
+  const eligibleHolders = investorHolders.filter(
+    (holder) => holder.status === "active" && Number(holder.shares || 0) > 0,
+  );
+
+  if (eligibleHolders.length === 0) {
+    throw new ApiError(400, "No active investor shares found for distribution");
+  }
+
   // distribution Option B: use committed EXPECTED yield (no admin verification).
-  const investorShareTotalBirr =
-    listing.expectedTotalYieldBirr * (listing.sharesToSellPercent / 100);
+  const investorShareTotalBirr = roundBirr(
+    Number(listing.expectedTotalYieldBirr || 0) *
+      (Number(listing.sharesToSellPercent || 0) / 100),
+  );
+
+  const totalInvestorShares = eligibleHolders.reduce(
+    (sum, holder) => sum + Number(holder.shares || 0),
+    0,
+  );
+
+  if (totalInvestorShares <= 0) {
+    throw new ApiError(400, "Invalid investor share totals for distribution");
+  }
 
   let totalDistributed = 0;
   const distributionMap = {};
+  const distributions = [];
+  let assignedBeforeLast = 0;
 
-  for (const holder of investorHolders) {
-    const proportion = holder.shares / listing.totalShares; // e.g. 0.15 if 15 shares
-    const amount = Math.round(investorShareTotalBirr * proportion);
+  for (let index = 0; index < eligibleHolders.length; index += 1) {
+    const holder = eligibleHolders[index];
+    const holderShares = Number(holder.shares || 0);
+    const isLastHolder = index === eligibleHolders.length - 1;
+
+    const amount = isLastHolder
+      ? roundBirr(investorShareTotalBirr - assignedBeforeLast)
+      : roundBirr(
+          (investorShareTotalBirr * holderShares) / totalInvestorShares,
+        );
+
+    if (!isLastHolder) {
+      assignedBeforeLast = roundBirr(assignedBeforeLast + amount);
+    }
 
     // Credit investor in-app wallet
     await User.findByIdAndUpdate(holder.investor._id, {
@@ -71,12 +93,18 @@ export const distributeProfits = asyncHandler(async (req, res) => {
     });
 
     distributionMap[holder.investor._id.toString()] = amount;
-    totalDistributed += amount;
+    totalDistributed = roundBirr(totalDistributed + amount);
+
+    distributions.push({
+      investorId: holder.investor._id,
+      shares: holderShares,
+      amountBirr: amount,
+    });
   }
 
   // Debit farmer (he pays the committed amount even if actual < expected)
   await User.findByIdAndUpdate(req.user._id, {
-    $inc: { walletBalance: -investorShareTotalBirr },
+    $inc: { walletBalance: -totalDistributed },
   });
 
   // Close listing
@@ -97,9 +125,13 @@ export const distributeProfits = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        totalDistributedBirr: investorShareTotalBirr,
-        investorCount: investorHolders.length,
-        message: "Profits distributed based on expected yield (Option B)",
+        totalDistributedBirr: totalDistributed,
+        investorCount: eligibleHolders.length,
+        totalInvestorShares,
+        investorShareTotalBirr,
+        distributions,
+        message:
+          "Profits distributed based on expected yield and active investor share ratio",
       },
       "Distribution completed",
     ),
