@@ -69,3 +69,29 @@ export const notifyRoleSafe = async (role, payload) => {
     return [];
   }
 };
+
+export const notifyUserIds = async (recipientIds, payload) => {
+  const uniqueRecipientIds = [
+    ...new Set((recipientIds || []).map(String)),
+  ].filter(Boolean);
+
+  if (uniqueRecipientIds.length === 0) {
+    return [];
+  }
+
+  const docs = uniqueRecipientIds.map((recipient) => ({
+    recipient,
+    ...payload,
+  }));
+
+  return Notification.insertMany(docs, { ordered: false });
+};
+
+export const notifyUserIdsSafe = async (recipientIds, payload) => {
+  try {
+    return await notifyUserIds(recipientIds, payload);
+  } catch (error) {
+    console.error("[Notification] Failed to notify user ids", error);
+    return [];
+  }
+};

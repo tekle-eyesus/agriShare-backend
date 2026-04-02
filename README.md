@@ -211,6 +211,9 @@ The backend includes a modular in-app notification system for farmer, investor, 
 - AgriCredits monthly grant -> notify user with deposited amount.
 - AgriCredits signup bonus -> notify user.
 - AgriCredits bundle purchase -> notify user with bundle and balance summary.
+- Farmer gets notified on every share sale in
+- Farmer gets a congratulatory notification when the investment goal is reached
+- All investors of a listing get notified when the farmer posts a new update
 - Added the unread-count endpoint for badge display.
 
 ### Notification API Endpoints
