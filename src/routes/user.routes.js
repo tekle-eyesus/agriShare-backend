@@ -11,6 +11,13 @@ import {
   updateUserByAdmin,
   setUserActiveStatus,
 } from "../controllers/user.controller.js";
+import {
+  getMyNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  clearMyNotifications,
+} from "../controllers/notification.controller.js";
 
 const router = express.Router();
 
@@ -18,6 +25,11 @@ router.get("/me", protect, getMyProfile);
 router.patch("/me", protect, updateMyProfile);
 router.patch("/me/password", protect, changeMyPassword);
 router.delete("/me", protect, deactivateMyAccount);
+router.get("/me/notifications", protect, getMyNotifications);
+router.patch("/me/notifications/read-all", protect, markAllNotificationsAsRead);
+router.patch("/me/notifications/:id/read", protect, markNotificationAsRead);
+router.delete("/me/notifications/clear", protect, clearMyNotifications);
+router.delete("/me/notifications/:id", protect, deleteNotification);
 
 // farmer-only route
 router.get(
